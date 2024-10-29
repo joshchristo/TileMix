@@ -62,8 +62,13 @@ class Grid(object):
 
         mask = mask.expand_as(img)
         img = img * mask 
+        self.mask = mask
 
         return img
+
+    def get_mask(self, img):
+         self.__call__(img)
+         return self.mask
 
 class GridMask(nn.Module):
     def __init__(self, d1, d2, rotate = 1, ratio = 0.5, mode=0, prob=1.):

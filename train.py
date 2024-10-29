@@ -22,6 +22,8 @@ import numpy as np
 
 import warnings
 
+from grid import Grid
+
 warnings.filterwarnings("ignore")
 
 model_names = sorted(name for name in models.__dict__
@@ -61,6 +63,11 @@ parser.add_argument('--beta', default=0, type=float,
                     help='hyperparameter beta')
 parser.add_argument('--cutmix_prob', default=0, type=float,
                     help='cutmix probability')
+parser.add_argument('--gridmask_prob', default=0, type=float,
+                    help='gridmask probability')
+parser.add_argument('--tilemix_prob', default=0, type=float,
+                    help='tilemix probability')
+
 
 parser.set_defaults(bottleneck=True)
 parser.set_defaults(verbose=True)
@@ -193,7 +200,7 @@ def main():
             best_err5 = err5
 
         print('Current best accuracy (top-1 and 5 error):', best_err1, best_err5)
-        save_checkpoint({
+        save_checkpoint({ 
             'epoch': epoch,
             'arch': args.net_type,
             'state_dict': model.state_dict(),
@@ -203,7 +210,6 @@ def main():
         }, is_best)
 
     print('Best accuracy (top-1 and 5 error):', best_err1, best_err5)
-
 
 def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
@@ -225,7 +231,30 @@ def train(train_loader, model, criterion, optimizer, epoch):
         target = target.cuda()
 
         r = np.random.rand(1)
-        if args.beta > 0 and r < args.cutmix_prob:
+        if r < args.tilemix_prob:
+            grid = Grid(12, 24)
+            rand_index = torch.randperm(input.size()[0]).cuda()
+            target_a = target
+            target_b = target[rand_index]
+            negative_mask = grid.get_mask(input[0])
+            mask = 1 - negative_mask
+            input = input[:, :]*mask + input[rand_index, :]*negative_mask
+
+            lam = torch.count_nonzero(mask[0])/(mask.shape[-1] * mask.shape[-2])
+
+            # compute output
+            output = model(input)
+            loss = criterion(output, target_a) * lam + criterion(output, target_b) * (1. - lam)
+        elif r < args.gridmask_prob:
+            grid = Grid(12, 24)
+            mask = grid.get_mask(input[0])
+            mask = 1 - mask
+            input = input[:, :]*mask
+
+            # compute output
+            output = model(input)
+            loss = criterion(output, target)
+        elif args.beta > 0 and r < args.cutmix_prob:
             # generate mixed sample
             lam = np.random.beta(args.beta, args.beta)
             rand_index = torch.randperm(input.size()[0]).cuda()
@@ -235,6 +264,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
             input[:, :, bbx1:bbx2, bby1:bby2] = input[rand_index, :, bbx1:bbx2, bby1:bby2]
             # adjust lambda to exactly match pixel ratio
             lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (input.size()[-1] * input.size()[-2]))
+
             # compute output
             output = model(input)
             loss = criterion(output, target_a) * lam + criterion(output, target_b) * (1. - lam)
