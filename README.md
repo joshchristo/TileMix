@@ -15,6 +15,7 @@ This implementation is a modified version of the original [code of CutMix](https
 
 ### Train Examples
 - CIFAR-100 dataset
+- CIFAR-100 dataset
 ```
 python train.py \
 --net_type pyramidnet \
@@ -27,8 +28,10 @@ python train.py \
 --epochs 300 \
 --beta 1.0 \
 --tilemix_prob 0.5 \
+--tilemix_prob 0.5 \
 --no-verbose
 ```
+- ImageNet dataset
 - ImageNet dataset
 ```
 python train.py \
@@ -41,6 +44,7 @@ python train.py \
 --expname ResNet50 \
 -j 40 \
 --beta 1.0 \
+--tilemix_prob 1.0 \
 --tilemix_prob 1.0 \
 --no-verbose
 ```
@@ -64,6 +68,10 @@ python test.py \
 --pretrained /set/your/model/path/model_best.pth.tar
 ```
 
+## References
+
+- CutMix code: https://github.com/clovaai/CutMix-PyTorch
+- GridMask code: https://github.com/dvlab-research/GridMask
 ## References
 
 - CutMix code: https://github.com/clovaai/CutMix-PyTorch
